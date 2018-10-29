@@ -1,18 +1,13 @@
 var drawingApp = (function(){
   "use strict";
 
-  var textDiv,
+  var textDiv, 
+      maxTotal = 20,
+      maxWidth = 2,
   
 
   updateClick = function(){
-    cirNum = textbox.value;
-    if(cirNum > 5) {
-      cirNum = 5;
-    }
-    if(cirNum < 1) {
-      cirNum = 1;
-    }
-    textBox.value = cirNum;
+    textDiv.innerHTML = mathText();
   },
   
   randInt = function(min, max) {
@@ -24,22 +19,27 @@ var drawingApp = (function(){
     while (r.length < length) {
         r = " " + r;
     }
-    console.log(r);
     return r;
   },
   
   mathText = function() {
-    var num1 = formatNumLen(randInt(0, 20), 2);
-    var num2 = formatNumLen(randInt(0, 20 - num1), 2);
-    var body = num1 + " + " + num2;
-    console.log(body);
+    var i;
+    var body = "";
+    for (i = 0; i < 1000; i++) {
+      var num1 = formatNumLen(randInt(0, maxTotal - 1), maxWidth);
+      var num2 = formatNumLen(randInt(1, maxTotal - num1), maxWidth);
+      body += num1 + " + " + num2 + " =        ";
+      if (i % 2 == 1) {
+        body += "\n";
+      }
+    }
+    
     return body;
   },
 
   mainExec = function() {
-    textDiv = document.getElementById('abc');
-    //var content = document.createTextNode(mathText());
-    //textDiv.appendChild(content);
+  
+    textDiv = document.getElementById('abc');    
     textDiv.innerHTML = mathText();
     
     document.getElementById('btn0').onclick = updateClick;
