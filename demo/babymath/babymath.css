@@ -1,14 +1,9 @@
-#canvas_holder {
-  border-style: solid;
-  border-color: orange;
-  width: 1000px;
-  height: 400px;
-  margin: auto;
+#text_holder {
+  font-family: "Courier New", Courier, monospace;
+  font-size:20pt
 }
 
 #ctl {
-  width: 1000px;
-  margin: auto;
-  flex-direction: row;
-  margin-top: 10px;
+  font-size:10pt
+  
 }

@@ -3,16 +3,25 @@
   <head>
 	<link rel="stylesheet" type="text/css" href="babymath.css">
     <script src="babymath.js"></script>
-    <style>body {font-size:20pt}</style>
+    <style></style>
   </head>
   <body>
     <div id="ctl">
+    
+      <form action="">
+        <input type="radio" name="mathSelection" value="0" checked>Addition<br>
+        <input type="radio" name="mathSelection" value="1">Subtraction<br>
+      </form>
+      
       <button id="btn0">Generate New Test</button>
+      
     </div>
+    
     <div id="text_holder">
       <pre id="abc" >
       </pre>
     </div>
+    
     <script>
       drawingApp.main();
     </script>
