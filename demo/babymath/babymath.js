@@ -2,7 +2,7 @@ var drawingApp = (function(){
   "use strict";
 
   var textDiv, 
-      maxTotal = 20,
+      maxTotal = 49,
       maxWidth = 2,
   
 
