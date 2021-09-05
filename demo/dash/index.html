@@ -4,8 +4,8 @@
         <title>Dash.js Rocks</title>
         <style>
             video {
-                width: 640px;
-                height: 360px;
+                width: 1280px;
+                height: 720px;
             }
         </style>
     </head>
@@ -17,6 +17,7 @@
         <script>
             (function(){
                 var url = "https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd";
+								url = "https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.mpd"
                 var player = dashjs.MediaPlayer().create();
                 player.initialize(document.querySelector("#videoPlayer"), url, true);
             })();
