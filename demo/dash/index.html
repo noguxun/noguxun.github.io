@@ -17,7 +17,11 @@
         <script>
             (function(){
                 var url = "https://dash.akamaized.net/envivio/EnvivioDash3/manifest.mpd";
-								url = "https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.mpd"
+				url = "https://bitmovin-a.akamaihd.net/content/MI201109210084_1/mpds/f08e80da-bf1d-4e3d-8899-f0f6155f6efa.mpd"
+                url = "http://rdmedia.bbc.co.uk/dash/ondemand/testcard/1/client_manifest-pto_both-events.mpd"
+                url = "http://rdmedia.bbc.co.uk/dash/ondemand/testcard/1/client_manifest-720p-stereo-events.mpd"
+                url = "http://rdmedia.bbc.co.uk/dash/ondemand/testcard/1/client_manifest-events-multilang.mpd"
+                url = "https://dash.global.ssl.fastly.net/akamai/bbb_30fps/bbb_30fps.mpd"
                 var player = dashjs.MediaPlayer().create();
                 player.initialize(document.querySelector("#videoPlayer"), url, true);
             })();
