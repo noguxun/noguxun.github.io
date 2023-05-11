@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        //clifford: '#da373d',
+                    }
+                },
+                container: {
+                    center: true,
+                },
+            }
+        }
+    </script>
+    <style>
+
+
+    </style>
+</head>
+
+<body>
+    <h1 class="container mx-auto text-center">Korean Ruby</h1>
+
+    <div class="container mx-auto">
+        <p class="mt-5 text-xl">Korean Sentence</p>
+        <div class="flex">
+            <input id="input_who" rows="1" size="5" value="A:"
+                class="flex-none border rounded-md py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mr-5"></input>
+
+            <textarea id="input_korea" rows="2"
+                class="flex-auto w-full resize-none border rounded-md py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline">면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요.</textarea>
+        </div>
+
+        <p class="mt-5 text-xl">Japanese Ruby</p>
+        <div class="flex mb-10">
+        <textarea id="input_japanese" rows="2"
+            class="w-full resize-none border rounded-md py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mr-5"></textarea>
+        
+        <button onclick="onTranslate()"
+            class="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">Translate</button>
+        </div>
+
+        <button onclick="onGenerate()"
+            class="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">Generate</button>
+      
+            <p class="mt-10 text-xl">Preview</p>
+            <div id="html-preview" class="border p-2"></div>
+
+        <p class="mt-10 text-xl">Ruby in HTML</p>
+        <textarea id="output_text" rows="5"
+            class="w-full resize-none border rounded-md py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline"></textarea>
+        <button onclick="onCopyToClipboard()"
+            class="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">Copy
+            To Clipboard</button>
+
+
+    </div>
+
+    <script>
+        let word_rubies = []
+
+        function onTranslate() {
+            let baseUrl = "https://translate.kclass.work/language/translate/v2";
+            let input_text = document.getElementById('input_korea').value;
+
+            let reqBody = {};
+            reqBody["q"] = [input_text];
+            reqBody["target"] = "ja";
+            reqBody["source"] = "ko";
+
+            let p = fetch(baseUrl, {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json', },
+                body: JSON.stringify(reqBody),
+            });
+
+            const shortIdPromises = [];
+            shortIdPromises.push(p);
+
+            Promise.all(shortIdPromises).then(responses =>
+                Promise.all(responses.map(response => response.json()))
+            ).then(datas => {
+                console.log(datas);
+                let translated = datas[0]["data"]["translations"][0]["translatedText"];
+                document.getElementById('input_japanese').value = translated;
+            });
+        }
+
+        function onGenerate() {
+            let who_said = document.getElementById('input_who').value;
+            let korea = document.getElementById('input_korea').value;
+            let japanese = document.getElementById('input_japanese').value;
+
+            const k_words = korea.trim().split(/\s+/);
+            const j_words = japanese.trim().split(/\s+/);
+            console.log(k_words, j_words);
+
+            if (k_words.length != j_words.length) {
+                alert(`Words count not matching\nJapanese: ${j_words.length}\nKorean: ${k_words.length}`);
+                return;
+            }
+
+            let generated = '<div style="display: flex;">' + getRubyHtml(who_said, ' ');
+            generated += '<div style="display: flex; flex-wrap: wrap;">';
+            for (let i = 0; i < k_words.length; i++) {
+                generated += getRubyHtml(k_words[i], j_words[i]);
+            }
+            generated += '</div></div>';
+
+            document.getElementById("html-preview").innerHTML = generated;
+            document.getElementById('output_text').value = generated;
+        }
+
+        function getRubyHtml(k, j) {
+            // let generated = `<div style="margin-right: 10px;"><div style="font-size: 20px; text-align: center">${k}</div><div style="font-size: 10px; text-align: justify">${j}</div></div>`;
+            let generated = `<ruby style="ruby-position:under; margin-left: 10px">${k}<rt>${j}</rt></ruby>`;
+            return generated;
+        }
+
+        function onCopyToClipboard() {
+            let copyText = document.getElementById("output_text");
+            navigator.clipboard
+                .writeText(copyText.value).
+                then(() => {
+                    //alert("Copied to clipboard");
+                })
+                .catch(() => {
+                    alert("something went wrong");
+                });
+        }
+    </script>
+</body>
+
+</html>
