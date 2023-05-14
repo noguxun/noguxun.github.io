@@ -105,7 +105,7 @@
                 return;
             }
 
-            let generated = '<div style="display: flex;">' + getRubyHtml(who_said, ' ');
+            let generated = '<div style="display: flex; margin-bottom: 10px;">' + getRubyHtml(who_said, ' ');
             generated += '<div style="display: flex; flex-wrap: wrap;">';
             for (let i = 0; i < k_words.length; i++) {
                 generated += getRubyHtml(k_words[i], j_words[i]);
@@ -117,8 +117,8 @@
         }
 
         function getRubyHtml(k, j) {
-            // let generated = `<div style="margin-right: 10px;"><div style="font-size: 20px; text-align: center">${k}</div><div style="font-size: 10px; text-align: justify">${j}</div></div>`;
-            let generated = `<ruby style="ruby-position:under; margin-left: 10px">${k}<rt>${j}</rt></ruby>`;
+            let k_replaced = k.replaceAll('_', ' ');
+            let generated = `<ruby style="ruby-position:under; margin-left: 10px">${k_replaced}<rt>${j}</rt></ruby>`;
             return generated;
         }
 
