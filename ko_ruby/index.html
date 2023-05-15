@@ -37,19 +37,28 @@
         </div>
 
         <p class="mt-5 text-xl">Japanese Ruby</p>
-        <div class="flex mb-10">
-        <textarea id="input_japanese" rows="2"
-            class="w-full resize-none border rounded-md py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mr-5"></textarea>
-        
-        <button onclick="onTranslate()"
-            class="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">Translate</button>
+        <div class="flex mb-5">
+            <textarea id="input_japanese" rows="2"
+                class="w-full resize-none border rounded-md py-2 px-3 text-gray-700 leading-tight focus:outline-none focus:shadow-outline mr-5">1 2 3 4 5 6 7 8</textarea>
+
+            <button onclick="onTranslate()"
+                class="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">Translate</button>
         </div>
 
         <button onclick="onGenerate()"
             class="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">Generate</button>
-      
-            <p class="mt-10 text-xl">Preview</p>
-            <div id="html-preview" class="border p-2"></div>
+
+
+        <p class="mt-10 text-xl">Preview</p>
+        <div id="html-preview" class="mb-5 border p-2"></div>
+
+        <button onclick="onAddToHistory()"
+            class="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">Add
+            To History</button>
+
+
+        <p class="mt-10 text-xl">History</p>
+        <ul id="history" class="border p-2"></ul>
 
         <p class="mt-10 text-xl">Ruby in HTML</p>
         <textarea id="output_text" rows="5"
@@ -62,7 +71,9 @@
     </div>
 
     <script>
-        let word_rubies = []
+        let rs_history = [];
+        let rs_history_selected = -1;
+        let current_ruby = null;
 
         function onTranslate() {
             let baseUrl = "https://translate.kclass.work/language/translate/v2";
@@ -98,22 +109,59 @@
 
             const k_words = korea.trim().split(/\s+/);
             const j_words = japanese.trim().split(/\s+/);
-            console.log(k_words, j_words);
 
             if (k_words.length != j_words.length) {
-                alert(`Words count not matching\nJapanese: ${j_words.length}\nKorean: ${k_words.length}`);
+                alert(`Words count not matching\n\nKorean: ${k_words.length}\n\nJapanese: ${j_words.length}`);
                 return;
             }
 
-            let generated = '<div style="display: flex; margin-bottom: 10px;">' + getRubyHtml(who_said, ' ');
-            generated += '<div style="display: flex; flex-wrap: wrap;">';
+            let ruby_html = '<div style="display: flex; margin-bottom: 10px;">' + getRubyHtml(who_said, ' ');
+            ruby_html += '<div style="display: flex; flex-wrap: wrap;">';
             for (let i = 0; i < k_words.length; i++) {
-                generated += getRubyHtml(k_words[i], j_words[i]);
+                ruby_html += getRubyHtml(k_words[i], j_words[i]);
             }
-            generated += '</div></div>';
+            ruby_html += '</div></div>';
 
-            document.getElementById("html-preview").innerHTML = generated;
-            document.getElementById('output_text').value = generated;
+            document.getElementById("html-preview").innerHTML = ruby_html;
+
+            current_ruby = {};
+            current_ruby.who = who_said;
+            current_ruby.korean = k_words;
+            current_ruby.japanese = j_words;
+            current_ruby.html = ruby_html;
+        }
+
+        function onAddToHistory() {
+            if (current_ruby == null) {
+                alert("Ruby not generated yet");
+            }
+
+            let rs = current_ruby;
+
+            rs_history.push(rs);
+
+            let historyDom = document.getElementById("history");
+            historyDom.innerHTML = '';
+
+            let all_html = "";
+            for (let i = 0; i < rs_history.length; i++) {
+                let rs = rs_history[i]
+                let container = document.createElement('li');
+                container.innerHTML = rs.html;
+                container.addEventListener('click', function () {
+                    if (rs_history_selected >= 0) {
+                        historyDom.childNodes.item(rs_history_selected).classList.remove("bg-gray-200");
+                    }
+                    rs_history_selected = i;
+                    container.classList.add("bg-gray-200");
+                });
+
+                historyDom.appendChild(container);
+
+                all_html += rs.html;
+            }
+
+            document.getElementById('output_text').value = all_html;
         }
 
         function getRubyHtml(k, j) {
@@ -133,6 +181,7 @@
                     alert("something went wrong");
                 });
         }
+
     </script>
 </body>
 
