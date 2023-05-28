@@ -30,7 +30,7 @@
     <h1 class="container mx-auto text-center">Korean Ruby</h1>
 
     <div class="container mx-auto">
-        <label for="message" class="block mb-2 text-xl font-bold text-gray-900">Korean Sentence</label>
+        <label for="k_sentence" class="block mb-2 text-xl font-bold text-gray-900">Korean Sentence</label>
         <div id="k_sentence" class="flex mb-10 space-x-5">
             <textarea id="input_who" rows="2" cols="5"
                 class="flex-none block p-2.5 text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500">A:</textarea>
@@ -39,10 +39,10 @@
                 class="flex-auto block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500">면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요.</textarea>
         </div>
 
-        <label for="message" class="block mb-2 text-xl font-bold text-gray-900">Japanese Ruby</label>
+        <label for="input_japanese" class="block mb-2 text-xl font-bold text-gray-900">Japanese Ruby</label>
         <textarea id="input_japanese" rows="2"
             class="mb-2 block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500">免疫力に 良い 納豆 やヨーグルトや 魚のような ものを たくさん お召し上がりください</textarea>
-        <div id="j_sentence" class="flex mb-10 space-x-5">
+        <div class="flex mb-10 space-x-5">
             <button onclick="onTranslate()"
                 class="bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">Translate</button>
 
@@ -51,14 +51,26 @@
         </div>
 
         <label for="html_preview" class="block mb-2 text-xl font-bold text-gray-900">Preview</label>
-        <div id="html_preview" class="mb-2 block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500"></div>
-        <button onclick="onAddToDialog()"
-            class="mb-10 bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">Add
-            To Dialog</button>
+        <div id="html_preview"
+            class="mb-2 block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+        </div>
+        <div class="flex mb-10 space-x-5">
+            <button onclick="onApplyEdit()"
+                class="mb-10 bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">Apply
+                Edition to Selected Dialog</button>
+            <button onclick="onAddToDialog()"
+                class="mb-10 bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">Append
+                To Dialog</button>
+        </div>
 
 
         <label for="dialog" class="block mb-2 text-xl font-bold text-gray-900">Dialog</label>
-        <ul id="dialog" class="mb-10 block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500"></ul>
+        <ul id="dialog"
+            class="mb-2 block p-2.5 w-full text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500">
+        </ul>
+        <button onclick="onLoadToEdit()"
+            class="mb-10 bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow">Load
+            to Edit</button>
 
         <label for="message" class="block mb-2 text-xl font-bold text-gray-900">Japanese Ruby</label>
         <textarea id="output_text" rows="5" readonly
@@ -162,6 +174,52 @@
             document.getElementById('output_text').value = all_html;
         }
 
+        function onLoadToEdit() {
+            if (rs_dialog_selected < 0) {
+                alert("No selection of Dialog");
+                return;
+            }
+
+            r = rs_dialog[rs_dialog_selected];
+            document.getElementById('input_who').value = r.who;
+            document.getElementById('input_korea').value = r.korean.join(' ');
+            document.getElementById('input_japanese').value = r.japanese.join(' ');
+        }
+
+        function onApplyEdit() {
+            if (rs_dialog_selected < 0) {
+                alert("No selection of Dialog");
+                return;
+            }
+
+            rs_dialog[rs_dialog_selected] = current_ruby;
+
+            //---------------
+            let dialogDom = document.getElementById("dialog");
+            dialogDom.innerHTML = '';
+
+            let all_html = "";
+            for (let i = 0; i < rs_dialog.length; i++) {
+                let rs = rs_dialog[i]
+                let container = document.createElement('li');
+                container.innerHTML = rs.html;
+                container.addEventListener('click', function () {
+                    if (rs_dialog_selected >= 0) {
+                        dialogDom.childNodes.item(rs_dialog_selected).classList.remove("bg-gray-200");
+                    }
+                    rs_dialog_selected = i;
+                    container.classList.add("bg-gray-200");
+                });
+
+                dialogDom.appendChild(container);
+
+                all_html += rs.html;
+            }
+
+            document.getElementById('output_text').value = all_html;
+            //---------------
+        }
+
         function getRubyHtml(k, j) {
             let k_replaced = k.replaceAll('_', ' ');
             let generated = `<ruby style="ruby-position:under; margin-left: 10px">${k_replaced}<rt>${j}</rt></ruby>`;
@@ -173,7 +231,7 @@
             navigator.clipboard
                 .writeText(copyText.value).
                 then(() => {
-                    alertTimeout("Copied to clipboard", 2000);
+                    alertTimeout("Copied to clipboard", 1000);
                 })
                 .catch(() => {
                     alert("something went wrong");
@@ -183,7 +241,7 @@
         function alertTimeout(mymsg, mymsecs) {
             var myelement = document.createElement("div");
             myelement.setAttribute("style", "top:0;bottom:0;left:0;right:0;margin:auto;");
-            myelement.classList.add("m-auto","text-center", "justify-center", "w-fit", "h-fit", "mb-10", "bg-white", "absolute", "text-gray-800" ,"font-semibold", "py-2", "px-4", "border", "border-gray-400", "rounded", "shadow");
+            myelement.classList.add("m-auto", "text-center", "justify-center", "w-fit", "h-fit", "mb-10", "bg-white", "absolute", "text-gray-800", "font-semibold", "py-2", "px-4", "border", "border-gray-400", "rounded", "shadow");
             myelement.innerHTML = mymsg;
             setTimeout(function () {
                 myelement.parentNode.removeChild(myelement);
