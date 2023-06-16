@@ -2,6 +2,25 @@
 <html>
 
 <head>
+    <script src='https://kit.fontawesome.com/a1559d5a11.js' crossorigin='anonymous'></script>
+    <style type="text/tailwindcss">
+        .button-gu {
+            @apply bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow;
+        }
+
+        .textarea-gu {
+            @apply block p-2.5 text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500;
+        }
+
+        .textarea-gu-alert {
+            @apply block p-2.5 text-sm text-gray-900 bg-gray-50 rounded-lg border border-rose-500 focus:ring-blue-500 focus:border-blue-500;
+        }
+
+        .label-gu {
+            @apply block mb-2 text-xl font-bold text-gray-900;
+        }
+
+    </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -16,80 +35,65 @@
                 },
             }
         }
-    </script>
-    <style type="text/tailwindcss">
-        .button-gu {
-            @apply bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow;
-        }
 
-        .textarea-gu {
-            @apply block p-2.5 text-sm text-gray-900 bg-gray-50 rounded-lg border border-gray-300 focus:ring-blue-500 focus:border-blue-500;
-        }
-
-        .label-gu {
-            @apply block mb-2 text-xl font-bold text-gray-900;
-        }
-
-    </style>
-</head>
-
-<body>
-    <!--
-        https://flowbite.com/docs/forms/textarea/
-    -->
-    <h1 class="container mx-auto text-center">Korean Ruby</h1>
-
-    <div class="container mx-auto">
-        <label for="k_sentence" class="label-gu">Korean Sentence</label>
-        <div id="k_sentence" class="flex mb-10 space-x-5">
-            <textarea id="input_who" rows="2" cols="5" oninput="onGenerate()"
-                class="flex-none textarea-gu">A:</textarea>
-
-            <textarea id="input_korea" rows="2" oninput="onGenerate()"
-                class="flex-auto w-full textarea-gu">면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요.</textarea>
-        </div>
-
-        <label for="input_japanese" class="label-gu">Japanese Ruby</label>
-        <textarea id="input_japanese" rows="2" oninput="onGenerate()"
-            class="mb-2 w-full textarea-gu">免疫力に 良い 納豆 やヨーグルトや 魚のような ものを たくさん お召し上がりください</textarea>
-        <div class="flex mb-10 space-x-5">
-            <button onclick="onTranslate()" class="button-gu">Translate</button>
-        </div>
-
-        <label for="html_preview" class="label-gu">Preview</label>
-        <div id="html_preview" class="mb-2 w-full textarea-gu">
-        </div>
-        <div class="flex mb-10 space-x-5">
-            <button onclick="onApplyEdit()" class="mb-10 button-gu">Apply to Selection</button>
-            <button onclick="onAddToDialog()" class="mb-10 button-gu">Append To Dialog</button>
-        </div>
-
-
-        <label for="dialog" class="label-gu">Dialog</label>
-        <ul id="dialog" class="mb-2 w-full textarea-gu">
-        </ul>
-        <button onclick="onLoadToEdit()" class="mb-10 button-gu">Load to Edit</button>
-
-        <label for="message" class="label-gu">Japanese Ruby</label>
-        <textarea id="output_text" rows="5" readonly class="mb-2 w-full textarea-gu"></textarea>
-        <button onclick="onCopyToClipboard()" class="button-gu">Copy To Clipboard</button>
-    </div>
-
-    <script>
-        let rs_dialog = [];
-        let rs_dialog_selected = -1;
+        let rs_conversation = [];
+        let rs_conversation_selected = -1;
         let current_ruby = null;
 
-        onGenerate()
+        window.onload = (event) => {
+            // getKoSpeech("면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요");
+            onGenerate();
+        };
 
-        function onTranslate() {
-            let baseUrl = "https://translate.kclass.work/language/translate/v2";
-            let input_text = document.getElementById('input_korea').value;
+        window.beforeunload = (event) => {
+            // Cancel the default behavior
+            event.preventDefault();
 
-            let reqBody = {};
-            reqBody["q"] = [input_text];
-            reqBody["target"] = "ja";
-            reqBody["source"] = "ko";
+            // Display a confirmation conversation
+            const confirmationMessage = 'Are you sure you want to leave this page?';
+            event.returnValue = confirmationMessage; // For older browsers
+
+            // Show a custom confirmation conversation
+            if (confirm(confirmationMessage)) {
+                // User clicked "Yes" to leave the page
+                // No further action needed
+            } else {
+                // User clicked "No" to stay on the page
+                // You can choose to perform additional actions or prevent the navigation
+                event.preventDefault();
+            }
+        };
+
+        function base64ToArrayBuffer(base64) {
+            var binaryString = atob(base64);
+            var bytes = new Uint8Array(binaryString.length);
+            for (var i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+
+        function onX1() {
+            getKoSpeech("면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요");
+        }
+
+        function getKoSpeech(ko_txt) {
+            // https://cloud.google.com/text-to-speech/docs/voices
+            let baseUrl = "https://texttospeech.kclass.work/v1/text:synthesize";
+
+            let reqBody = {
+                "input": {
+                    "text": ko_txt,
+                },
+                "voice": {
+                    "languageCode": "ko-KR",
+                    "name": "ko-KR-Neural2-A",
+                    "ssmlGender": "FEMALE"
+                },
+                "audioConfig": {
+                    "audioEncoding": "MP3"
+                }
+            };
 
             let p = fetch(baseUrl, {
                 method: "POST",
@@ -104,9 +108,53 @@
                 Promise.all(responses.map(response => response.json()))
             ).then(datas => {
                 console.log(datas);
-                let translated = datas[0]["data"]["translations"][0]["translatedText"];
-                document.getElementById('input_japanese').value = translated;
+                let speech_base64 = datas[0]["audioContent"];
+                console.log(speech_base64);
+                //const decodedString = atob(speech_base64);
+                const audio = base64ToArrayBuffer(speech_base64);
+
+                //https://www.wizard-notes.com/entry/javascript/web-audio-api-chrome-user-interaction
+                // Create an AudioContext instance
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                // Decode the MP3 data into an AudioBuffer
+                audioContext.decodeAudioData(audio, function (decodedBuffer) {
+                    // Create a new AudioBufferSourceNode
+                    const source = audioContext.createBufferSource();
+
+                    // Set the decoded audio data as the buffer for the AudioBufferSourceNode
+                    source.buffer = decodedBuffer;
+
+                    // Connect the AudioBufferSourceNode to the destination (speakers)
+                    source.connect(audioContext.destination);
+
+                    // Start playing the audio
+                    source.start(0);
+                });
             });
+        }
+
+
+        async function onTranslate() {
+            let baseUrl = "https://translate.kclass.work/language/translate/v2";
+            let input_text = document.getElementById('input_korea').value;
+
+            let reqBody = {};
+            reqBody["q"] = [input_text];
+            reqBody["target"] = "ja";
+            reqBody["source"] = "ko";
+
+            let resp = await fetch(baseUrl, {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json', },
+                body: JSON.stringify(reqBody),
+            });
+
+            let data = await resp.json();
+            let translated = data["data"]["translations"][0]["translatedText"];
+            document.getElementById('input_japanese').value = translated;
+
+            onGenerate();
         }
 
         function onGenerate() {
@@ -118,7 +166,11 @@
             const j_words = japanese.trim().split(/\s+/);
 
             if (k_words.length != j_words.length || k_words.length == 0) {
+                document.getElementById("html_preview").classList.add("textarea-gu-alert");
+                console.log("wrong number!!");
+
                 document.getElementById("html_preview").innerHTML = `Korean: ${k_words.length}<br/>Japanese: ${j_words.length}`;
+                current_ruby = null;
                 return;
             }
 
@@ -127,9 +179,10 @@
             for (let i = 0; i < k_words.length; i++) {
                 ruby_html += getRubyHtml(k_words[i], j_words[i]);
             }
-            ruby_html += '</div></div>';
+            ruby_html += '</div><div id="play_button1" onclick="handlePlayClick(this.id)" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div></div>';
 
             document.getElementById("html_preview").innerHTML = ruby_html;
+            document.getElementById("html_preview").classList.remove("textarea-gu-alert")
 
             current_ruby = {};
             current_ruby.who = who_said;
@@ -138,77 +191,86 @@
             current_ruby.html = ruby_html;
         }
 
-        function onAddToDialog() {
+        function onAddToConversation() {
             if (current_ruby == null) {
                 alert("Ruby not generated yet");
             }
 
             let rs = current_ruby;
 
-            rs_dialog.push(rs);
+            rs_conversation.push(rs);
 
-            let dialogDom = document.getElementById("dialog");
-            dialogDom.innerHTML = '';
+            let conversationDom = document.getElementById("conversation");
+            conversationDom.innerHTML = '';
 
             let all_html = "";
-            for (let i = 0; i < rs_dialog.length; i++) {
-                let rs = rs_dialog[i]
+            for (let i = 0; i < rs_conversation.length; i++) {
+                let rs = rs_conversation[i]
                 let container = document.createElement('li');
                 container.innerHTML = rs.html;
                 container.addEventListener('click', function () {
-                    if (rs_dialog_selected >= 0) {
-                        dialogDom.childNodes.item(rs_dialog_selected).classList.remove("bg-gray-300");
+                    if (rs_conversation_selected >= 0) {
+                        conversationDom.childNodes.item(rs_conversation_selected).classList.remove("bg-gray-300");
                     }
-                    rs_dialog_selected = i;
+                    rs_conversation_selected = i;
                     container.classList.add("bg-gray-300");
                 });
 
-                dialogDom.appendChild(container);
+                conversationDom.appendChild(container);
 
                 all_html += rs.html;
             }
+
+            all_html += `
+            <script>
+                function handlePlayClick(divId) {
+                    console.log("Div clicked! ID:", divId);
+                }
+            <\/script>
+            `;
 
             document.getElementById('output_text').value = all_html;
         }
 
         function onLoadToEdit() {
-            if (rs_dialog_selected < 0) {
-                alert("No selection of Dialog");
+            if (rs_conversation_selected < 0) {
+                alert("No selection of Conversation");
                 return;
             }
 
-            r = rs_dialog[rs_dialog_selected];
+            r = rs_conversation[rs_conversation_selected];
             document.getElementById('input_who').value = r.who;
             document.getElementById('input_korea').value = r.korean.join(' ');
             document.getElementById('input_japanese').value = r.japanese.join(' ');
+            onGenerate()
         }
 
         function onApplyEdit() {
-            if (rs_dialog_selected < 0) {
-                alert("No selection of Dialog");
+            if (rs_conversation_selected < 0) {
+                alert("No selection of Conversation");
                 return;
             }
 
-            rs_dialog[rs_dialog_selected] = current_ruby;
+            rs_conversation[rs_conversation_selected] = current_ruby;
 
             //---------------
-            let dialogDom = document.getElementById("dialog");
-            dialogDom.innerHTML = '';
+            let conversationDom = document.getElementById("conversation");
+            conversationDom.innerHTML = '';
 
             let all_html = "";
-            for (let i = 0; i < rs_dialog.length; i++) {
-                let rs = rs_dialog[i]
+            for (let i = 0; i < rs_conversation.length; i++) {
+                let rs = rs_conversation[i]
                 let container = document.createElement('li');
                 container.innerHTML = rs.html;
                 container.addEventListener('click', function () {
-                    if (rs_dialog_selected >= 0) {
-                        dialogDom.childNodes.item(rs_dialog_selected).classList.remove("bg-gray-200");
+                    if (rs_conversation_selected >= 0) {
+                        conversationDom.childNodes.item(rs_conversation_selected).classList.remove("bg-gray-200");
                     }
-                    rs_dialog_selected = i;
+                    rs_conversation_selected = i;
                     container.classList.add("bg-gray-200");
                 });
 
-                dialogDom.appendChild(container);
+                conversationDom.appendChild(container);
 
                 all_html += rs.html;
             }
@@ -247,6 +309,57 @@
         }
 
     </script>
+</head>
+
+<body>
+    <!--
+        https://flowbite.com/docs/forms/textarea/
+    -->
+    <h1 class="container mx-auto text-center">Korean Ruby</h1>
+
+    <div class="container mx-auto">
+        <label for="k_sentence" class="label-gu">Korean Sentence</label>
+        <div id="k_sentence" class="flex mb-10 space-x-5">
+            <textarea id="input_who" rows="2" cols="5" oninput="onGenerate()"
+                class="flex-none textarea-gu">A:</textarea>
+
+            <textarea id="input_korea" rows="2" oninput="onGenerate()"
+                class="flex-auto w-full textarea-gu">면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요.</textarea>
+        </div>
+
+        <label for="input_japanese" class="label-gu">Japanese Ruby</label>
+        <textarea id="input_japanese" rows="2" oninput="onGenerate()"
+            class="mb-2 w-full textarea-gu">免疫力に 良い 納豆 やヨーグルトや 魚のような ものを たくさん お召し上がりください</textarea>
+        <div class="flex mb-10 space-x-5">
+            <button onclick="onTranslate()" class="button-gu">Translate</button>
+        </div>
+
+        <label for="html_preview" class="label-gu">Preview</label>
+        <div id="html_preview" class="mb-2 w-full textarea-gu">
+        </div>
+        <div class="flex mb-10 space-x-5">
+            <button onclick="onApplyEdit()" class="mb-10 button-gu">Apply to Selection</button>
+            <button onclick="onAddToConversation()" class="mb-10 button-gu">Append To Conversation</button>
+        </div>
+
+
+        <label for="conversation" class="label-gu">Conversation</label>
+        <ul id="conversation" class="mb-2 w-full textarea-gu">
+        </ul>
+        <button onclick="onLoadToEdit()" class="mb-10 button-gu">Load to Edit</button>
+
+        <label for="message" class="label-gu">Japanese Ruby</label>
+        <textarea id="output_text" rows="5" readonly class="mb-2 w-full textarea-gu"></textarea>
+        <button onclick="onCopyToClipboard()" class="button-gu">Copy To Clipboard</button>
+        <button onclick="onX1()" class="button-gu">X1</button>
+    </div>
+
+
 </body>
 
 </html>
+
+<!--
+https://blog.hatena.ne.jp/noguxun/noguxun.hatenablog.com/edit?entry=820878482941942887
+    https://stackoverflow.com/questions/22885702/html-for-the-pause-symbol-in-audio-and-video-control
+-->
