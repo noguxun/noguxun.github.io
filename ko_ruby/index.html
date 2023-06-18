@@ -22,6 +22,7 @@
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        const play_button_place_holder = "<div hidden>_place_holder_</div>";
         let rs_conversation = [];
         let rs_conversation_selected = -1;
         let current_ruby = null;
@@ -29,7 +30,6 @@
         window.onload = (event) => {
             // Need this to prevent having TEXT child
             document.getElementById("conversation").innerHTML = '';
-            // getKoSpeech("면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요");
             onGenerate();
         };
 
@@ -52,18 +52,22 @@
             }
         };
 
-        function base64ToArrayBuffer(base64) {
+        function base64ToUint8Array(base64) {
             var binaryString = atob(base64);
             var bytes = new Uint8Array(binaryString.length);
             for (var i = 0; i < binaryString.length; i++) {
                 bytes[i] = binaryString.charCodeAt(i);
             }
-            return bytes.buffer;
+            return bytes;
         }
 
         async function onXyz() {
             let speech_audio = await getKoSpeech("면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요");
             playSpeech(speech_audio);
+        }
+
+        async function fillCurrentKoSpeech() {
+            current_ruby.speech = await getKoSpeech(current_ruby.korean.join(' '));
         }
 
         async function getKoSpeech(ko_txt) {
@@ -77,10 +81,13 @@
                 "voice": {
                     "languageCode": "ko-KR",
                     "name": "ko-KR-Neural2-A",
-                    "ssmlGender": "FEMALE"
+                    //"ssmlGender": "FEMALE"
+                    //"name": "ko-KR-Wavenet-A",
                 },
                 "audioConfig": {
-                    "audioEncoding": "MP3"
+                    "audioEncoding": "MP3",
+                    "speakingRate": 0.7,
+                    //"sampleRateHertz": 8000,
                 }
             };
 
@@ -92,19 +99,19 @@
 
             let data = await resp.json();
             let speech_base64 = data["audioContent"];
-            console.log(speech_base64);
 
-            audio = base64ToArrayBuffer(speech_base64);
-            return audio;
+            return speech_base64;
         }
 
-        function playSpeech(audio) {
+        function playSpeech(speech_base64) {
+
+            let audio = base64ToUint8Array(speech_base64);
             //https://www.wizard-notes.com/entry/javascript/web-audio-api-chrome-user-interaction
             // Create an AudioContext instance
             const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
             // Decode the MP3 data into an AudioBuffer
-            audioContext.decodeAudioData(audio, function (decodedBuffer) {
+            audioContext.decodeAudioData(audio.buffer, function (decodedBuffer) {
                 // Create a new AudioBufferSourceNode
                 const source = audioContext.createBufferSource();
 
@@ -113,6 +120,8 @@
 
                 // Connect the AudioBufferSourceNode to the destination (speakers)
                 source.connect(audioContext.destination);
+
+                //source.playbackRate.value = 0.8;
 
                 // Start playing the audio
                 source.start(0);
@@ -158,7 +167,7 @@
                 return;
             }
 
-            let ruby_html = '<div style="display: flex; margin-bottom: 10px;">' + getRubyHtml(who_said, ' ');
+            let ruby_html = '<div style="display: flex; padding: 10px 0px;">' + getRubyHtml(who_said, ' ');
             ruby_html += '<div style="display: flex; flex-wrap: wrap;">';
             for (let i = 0; i < k_words.length; i++) {
                 ruby_html += getRubyHtml(k_words[i], j_words[i]);
@@ -166,7 +175,8 @@
 
             // todo:
             // set a place holder here 
-            ruby_html += '</div><div id="place_holder"></div></div>';
+            play_button_html = `<div id="play_button1" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div>`;
+            ruby_html += `</div>${play_button_place_holder}</div>`;
 
             document.getElementById("html_preview").innerHTML = ruby_html;
             document.getElementById("html_preview").classList.remove("textarea-gu-alert")
@@ -178,20 +188,26 @@
             current_ruby.html = ruby_html;
         }
 
-        function onAddToConversation() {
+        async function onAppendEdit() {
             if (current_ruby == null) {
                 alert("Ruby not generated yet");
                 return;
             }
 
-            rs_conversation.push(current_ruby);
+            // prepare current ruby info
+            // get korean speech
+            await fillCurrentKoSpeech();
+            // add play button
+            let button_id = rs_conversation.length;
+            let button_html = `<div id="play_button_${button_id}" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div>`;
+            let ruby_html = current_ruby.html.replace(play_button_place_holder, button_html);
 
             // let the below clourse to capture this variable
-            let rs_conversation_index = rs_conversation.length - 1;
+            let rs_conversation_index = rs_conversation.length;
 
             let conversationDom = document.getElementById("conversation");
             let container = document.createElement('li');
-            container.innerHTML = current_ruby.html;
+            container.innerHTML = ruby_html;
             container.addEventListener('click', function () {
                 if (rs_conversation_selected >= 0) {
                     conversationDom.childNodes.item(rs_conversation_selected).classList.remove("bg-gray-300");
@@ -201,6 +217,18 @@
             });
 
             conversationDom.appendChild(container);
+            rs_conversation.push(current_ruby);
+            addPlayButtonHook(button_id);
+        }
+
+        function addPlayButtonHook(button_id) {
+            button_html_id = `play_button_${button_id}`;
+            let play_button = document.getElementById(button_html_id);
+            play_button.addEventListener("click", function () {
+                let audio = rs_conversation[button_id].speech;
+                console.log(audio);
+                playSpeech(audio);
+            });
         }
 
         function onLoadToEdit() {
@@ -216,38 +244,31 @@
             onGenerate()
         }
 
-        function onApplyEdit() {
+        async function onApplyEdit() {
             if (rs_conversation_selected < 0) {
                 alert("No selection of Conversation");
                 return;
             }
 
-            rs_conversation[rs_conversation_selected] = current_ruby;
-
-            //---------------
-            let conversationDom = document.getElementById("conversation");
-            conversationDom.innerHTML = '';
-
-            let all_html = "";
-            for (let i = 0; i < rs_conversation.length; i++) {
-                let rs = rs_conversation[i]
-                let container = document.createElement('li');
-                container.innerHTML = rs.html;
-                container.addEventListener('click', function () {
-                    if (rs_conversation_selected >= 0) {
-                        conversationDom.childNodes.item(rs_conversation_selected).classList.remove("bg-gray-200");
-                    }
-                    rs_conversation_selected = i;
-                    container.classList.add("bg-gray-200");
-                });
-
-                conversationDom.appendChild(container);
-
-                all_html += rs.html;
+            if (current_ruby == null) {
+                alert("Ruby not generated yet");
+                return;
             }
 
-            document.getElementById('output_text').value = all_html;
-            //---------------
+
+            await fillCurrentKoSpeech();
+
+            rs_conversation[rs_conversation_selected] = current_ruby;
+            let conversationDom = document.getElementById("conversation");
+
+            // add play button
+            let button_id = rs_conversation_selected;
+            let button_html = `<div id="play_button_${button_id}" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div>`;
+            let ruby_html = current_ruby.html.replace(play_button_place_holder, button_html);
+
+            conversationDom.childNodes.item(rs_conversation_selected).innerHTML = ruby_html;
+
+            addPlayButtonHook(rs_conversation_selected);
         }
 
         function getRubyHtml(k, j) {
@@ -259,9 +280,10 @@
         function pupulateKoSpeaking() {
             for (let i = 0; i < rs_conversation.length; i++) {
                 let rs = rs_conversation[i];
-                rs.speech = sgetKoSpeech(rs.korea);
+                //rs.speech = sgetKoSpeech(rs.korea);
 
                 // replace ending </div> place holder to 
+                // &#x23F5;
                 // <div id="play_button1" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div>
                 // then generate some code like in 
                 // https://blog.hatena.ne.jp/noguxun/noguxun.hatenablog.com/edit?entry=820878482941942887
@@ -337,6 +359,7 @@
             document.body.appendChild(myelement);
         }
 
+
     </script>
 </head>
 
@@ -368,7 +391,7 @@
         </div>
         <div class="flex mb-10 space-x-5">
             <button onclick="onApplyEdit()" class="mb-10 button-gu">Apply to Selection</button>
-            <button onclick="onAddToConversation()" class="mb-10 button-gu">Append To Conversation</button>
+            <button onclick="onAppendEdit()" class="mb-10 button-gu">Append To Conversation</button>
         </div>
 
 
