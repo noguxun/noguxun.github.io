@@ -2,7 +2,6 @@
 <html>
 
 <head>
-    <script src='https://kit.fontawesome.com/a1559d5a11.js' crossorigin='anonymous'></script>
     <style type="text/tailwindcss">
         .button-gu {
             @apply bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow;
@@ -23,24 +22,13 @@
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
-        tailwind.config = {
-            theme: {
-                extend: {
-                    colors: {
-                        //clifford: '#da373d',
-                    }
-                },
-                container: {
-                    center: true,
-                },
-            }
-        }
-
         let rs_conversation = [];
         let rs_conversation_selected = -1;
         let current_ruby = null;
 
         window.onload = (event) => {
+            // Need this to prevent having TEXT child
+            document.getElementById("conversation").innerHTML = '';
             // getKoSpeech("면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요");
             onGenerate();
         };
@@ -73,11 +61,12 @@
             return bytes.buffer;
         }
 
-        function onX1() {
-            getKoSpeech("면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요");
+        async function onXyz() {
+            let speech_audio = await getKoSpeech("면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요");
+            playSpeech(speech_audio);
         }
 
-        function getKoSpeech(ko_txt) {
+        async function getKoSpeech(ko_txt) {
             // https://cloud.google.com/text-to-speech/docs/voices
             let baseUrl = "https://texttospeech.kclass.work/v1/text:synthesize";
 
@@ -95,45 +84,40 @@
                 }
             };
 
-            let p = fetch(baseUrl, {
+            let resp = await fetch(baseUrl, {
                 method: "POST",
                 headers: { 'Content-Type': 'application/json', },
                 body: JSON.stringify(reqBody),
             });
 
-            const shortIdPromises = [];
-            shortIdPromises.push(p);
+            let data = await resp.json();
+            let speech_base64 = data["audioContent"];
+            console.log(speech_base64);
 
-            Promise.all(shortIdPromises).then(responses =>
-                Promise.all(responses.map(response => response.json()))
-            ).then(datas => {
-                console.log(datas);
-                let speech_base64 = datas[0]["audioContent"];
-                console.log(speech_base64);
-                //const decodedString = atob(speech_base64);
-                const audio = base64ToArrayBuffer(speech_base64);
-
-                //https://www.wizard-notes.com/entry/javascript/web-audio-api-chrome-user-interaction
-                // Create an AudioContext instance
-                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-                // Decode the MP3 data into an AudioBuffer
-                audioContext.decodeAudioData(audio, function (decodedBuffer) {
-                    // Create a new AudioBufferSourceNode
-                    const source = audioContext.createBufferSource();
-
-                    // Set the decoded audio data as the buffer for the AudioBufferSourceNode
-                    source.buffer = decodedBuffer;
-
-                    // Connect the AudioBufferSourceNode to the destination (speakers)
-                    source.connect(audioContext.destination);
-
-                    // Start playing the audio
-                    source.start(0);
-                });
-            });
+            audio = base64ToArrayBuffer(speech_base64);
+            return audio;
         }
 
+        function playSpeech(audio) {
+            //https://www.wizard-notes.com/entry/javascript/web-audio-api-chrome-user-interaction
+            // Create an AudioContext instance
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            // Decode the MP3 data into an AudioBuffer
+            audioContext.decodeAudioData(audio, function (decodedBuffer) {
+                // Create a new AudioBufferSourceNode
+                const source = audioContext.createBufferSource();
+
+                // Set the decoded audio data as the buffer for the AudioBufferSourceNode
+                source.buffer = decodedBuffer;
+
+                // Connect the AudioBufferSourceNode to the destination (speakers)
+                source.connect(audioContext.destination);
+
+                // Start playing the audio
+                source.start(0);
+            });
+        }
 
         async function onTranslate() {
             let baseUrl = "https://translate.kclass.work/language/translate/v2";
@@ -179,7 +163,10 @@
             for (let i = 0; i < k_words.length; i++) {
                 ruby_html += getRubyHtml(k_words[i], j_words[i]);
             }
-            ruby_html += '</div><div id="play_button1" onclick="handlePlayClick(this.id)" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div></div>';
+
+            // todo:
+            // set a place holder here 
+            ruby_html += '</div><div id="place_holder"></div></div>';
 
             document.getElementById("html_preview").innerHTML = ruby_html;
             document.getElementById("html_preview").classList.remove("textarea-gu-alert")
@@ -194,42 +181,26 @@
         function onAddToConversation() {
             if (current_ruby == null) {
                 alert("Ruby not generated yet");
+                return;
             }
 
-            let rs = current_ruby;
+            rs_conversation.push(current_ruby);
 
-            rs_conversation.push(rs);
+            // let the below clourse to capture this variable
+            let rs_conversation_index = rs_conversation.length - 1;
 
             let conversationDom = document.getElementById("conversation");
-            conversationDom.innerHTML = '';
-
-            let all_html = "";
-            for (let i = 0; i < rs_conversation.length; i++) {
-                let rs = rs_conversation[i]
-                let container = document.createElement('li');
-                container.innerHTML = rs.html;
-                container.addEventListener('click', function () {
-                    if (rs_conversation_selected >= 0) {
-                        conversationDom.childNodes.item(rs_conversation_selected).classList.remove("bg-gray-300");
-                    }
-                    rs_conversation_selected = i;
-                    container.classList.add("bg-gray-300");
-                });
-
-                conversationDom.appendChild(container);
-
-                all_html += rs.html;
-            }
-
-            all_html += `
-            <script>
-                function handlePlayClick(divId) {
-                    console.log("Div clicked! ID:", divId);
+            let container = document.createElement('li');
+            container.innerHTML = current_ruby.html;
+            container.addEventListener('click', function () {
+                if (rs_conversation_selected >= 0) {
+                    conversationDom.childNodes.item(rs_conversation_selected).classList.remove("bg-gray-300");
                 }
-            <\/script>
-            `;
+                rs_conversation_selected = rs_conversation_index;
+                this.classList.add("bg-gray-300");
+            });
 
-            document.getElementById('output_text').value = all_html;
+            conversationDom.appendChild(container);
         }
 
         function onLoadToEdit() {
@@ -285,10 +256,68 @@
             return generated;
         }
 
+        function pupulateKoSpeaking() {
+            for (let i = 0; i < rs_conversation.length; i++) {
+                let rs = rs_conversation[i];
+                rs.speech = sgetKoSpeech(rs.korea);
+
+                // replace ending </div> place holder to 
+                // <div id="play_button1" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div>
+                // then generate some code like in 
+                // https://blog.hatena.ne.jp/noguxun/noguxun.hatenablog.com/edit?entry=820878482941942887
+                /*
+                        function base64ToArrayBuffer(base64) {
+            var binaryString = atob(base64);
+            var bytes = new Uint8Array(binaryString.length);
+            for (var i = 0; i < binaryString.length; i++) {
+                bytes[i] = binaryString.charCodeAt(i);
+            }
+            return bytes.buffer;
+        }
+                
+            function playBase64(event) {
+                console.log(event.target.id);
+                console.log("Div playBase64");
+                const audio = base64ToArrayBuffer(speech_base64);
+
+                        //https://www.wizard-notes.com/entry/javascript/web-audio-api-chrome-user-interaction
+                        // Create an AudioContext instance
+                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+                        // Decode the MP3 data into an AudioBuffer
+                        audioContext.decodeAudioData(audio, function (decodedBuffer) {
+                            // Create a new AudioBufferSourceNode
+                            const source = audioContext.createBufferSource();
+
+                            // Set the decoded audio data as the buffer for the AudioBufferSourceNode
+                            source.buffer = decodedBuffer;
+
+                            // Connect the AudioBufferSourceNode to the destination (speakers)
+                            source.connect(audioContext.destination);
+
+                            // Start playing the audio
+                            source.start(0);
+                        });
+            }
+            
+            playButton.addEventListener("click", playBase64);
+                */
+            }
+
+
+        }
+
         function onCopyToClipboard() {
-            let copyText = document.getElementById("output_text");
+            let all_html = "";
+            for (let i = 0; i < rs_conversation.length; i++) {
+                all_html += rs_conversation[i].html;
+            }
+            document.getElementById('output_text').value = all_html;
+
+            // pupulateKoSpeaking()
+
             navigator.clipboard
-                .writeText(copyText.value).
+                .writeText(all_html).
                 then(() => {
                     alertTimeout("Copied to clipboard", 1000);
                 })
@@ -344,14 +373,13 @@
 
 
         <label for="conversation" class="label-gu">Conversation</label>
-        <ul id="conversation" class="mb-2 w-full textarea-gu">
-        </ul>
+        <ul id="conversation" class="mb-2 w-full textarea-gu"></ul>
         <button onclick="onLoadToEdit()" class="mb-10 button-gu">Load to Edit</button>
 
         <label for="message" class="label-gu">Japanese Ruby</label>
         <textarea id="output_text" rows="5" readonly class="mb-2 w-full textarea-gu"></textarea>
         <button onclick="onCopyToClipboard()" class="button-gu">Copy To Clipboard</button>
-        <button onclick="onX1()" class="button-gu">X1</button>
+        <button onclick="onXyz()" class="button-gu">X1</button>
     </div>
 
 
