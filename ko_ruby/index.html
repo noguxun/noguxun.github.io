@@ -209,7 +209,6 @@
                 ruby_html += getRubyHtml(k_words[i], j_words[i]);
             }
 
-            play_button_html = `<div id="play_button1" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div>`;
             ruby_html += `</div>${play_button_place_holder}</div>`;
 
             document.getElementById("html_preview").innerHTML = ruby_html;
@@ -223,7 +222,7 @@
         }
 
         function setHtmlPlayButton(html_no_button, button_index) {
-            let button_html = `<div id="play_button_${button_index}" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div>`;
+            let button_html = `<div id="play_button_${button_index}" style="width: 25px; height: 25px; margin-left: 10px; font-size: 20px; ">&#x1F50A;</div>`;
             let html_button = html_no_button.replace(play_button_place_holder, button_html);
             return html_button;
         }
