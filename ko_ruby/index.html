@@ -22,6 +22,42 @@
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+
+        let playback_script = `
+        
+            function playSpeech(speech_base64) {
+                let audio = base64ToUint8Array(speech_base64);
+                const audioContext = new(window.AudioContext || window.webkitAudioContext)();
+                audioContext.decodeAudioData(audio.buffer, function(decodedBuffer) {
+                    const source = audioContext.createBufferSource();
+                    source.buffer = decodedBuffer;
+                    source.connect(audioContext.destination);
+                    source.start(0);
+                });
+            }
+
+            function base64ToUint8Array(base64) {
+                var binaryString = atob(base64);
+                var bytes = new Uint8Array(binaryString.length);
+                for (var i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                return bytes;
+            }
+
+            function addPlayButtonHook(button_id) {
+                button_html_id = \`play_button_\${button_id}\`;
+                let play_button = document.getElementById(button_html_id);
+                play_button.addEventListener("click", function() {
+                playSpeech(speeches[button_id]);
+                });
+            }
+            
+            for (let i = 0; i < speeches.length; i++) {
+                addPlayButtonHook(i);
+            }
+        `;
+
         const play_button_place_holder = "<div hidden>_place_holder_</div>";
         let rs_conversation = [];
         let rs_conversation_selected = -1;
@@ -173,8 +209,6 @@
                 ruby_html += getRubyHtml(k_words[i], j_words[i]);
             }
 
-            // todo:
-            // set a place holder here 
             play_button_html = `<div id="play_button1" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div>`;
             ruby_html += `</div>${play_button_place_holder}</div>`;
 
@@ -188,6 +222,50 @@
             current_ruby.html = ruby_html;
         }
 
+        function setHtmlPlayButton(html_no_button, button_index) {
+            let button_html = `<div id="play_button_${button_index}" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div>`;
+            let html_button = html_no_button.replace(play_button_place_holder, button_html);
+            return html_button;
+        }
+
+        function onLoadToEdit() {
+            if (rs_conversation_selected < 0) {
+                alert("No selection of Conversation");
+                return;
+            }
+
+            r = rs_conversation[rs_conversation_selected];
+            document.getElementById('input_who').value = r.who;
+            document.getElementById('input_korea').value = r.korean.join(' ');
+            document.getElementById('input_japanese').value = r.japanese.join(' ');
+            onGenerate()
+        }
+
+        async function onApplyEdit() {
+            if (rs_conversation_selected < 0) {
+                alert("No selection of Conversation");
+                return;
+            }
+
+            if (current_ruby == null) {
+                alert("Ruby not generated yet");
+                return;
+            }
+
+            await fillCurrentKoSpeech();
+
+            rs_conversation[rs_conversation_selected] = current_ruby;
+            let conversationDom = document.getElementById("conversation");
+
+            // add play button
+            let button_id = rs_conversation_selected;
+            let ruby_html = setHtmlPlayButton(current_ruby.html, button_id);
+
+            conversationDom.childNodes.item(rs_conversation_selected).innerHTML = ruby_html;
+
+            addPlayButtonHook(rs_conversation_selected);
+        }
+
         async function onAppendEdit() {
             if (current_ruby == null) {
                 alert("Ruby not generated yet");
@@ -199,8 +277,7 @@
             await fillCurrentKoSpeech();
             // add play button
             let button_id = rs_conversation.length;
-            let button_html = `<div id="play_button_${button_id}" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div>`;
-            let ruby_html = current_ruby.html.replace(play_button_place_holder, button_html);
+            let ruby_html = setHtmlPlayButton(current_ruby.html, button_id);
 
             // let the below clourse to capture this variable
             let rs_conversation_index = rs_conversation.length;
@@ -231,112 +308,32 @@
             });
         }
 
-        function onLoadToEdit() {
-            if (rs_conversation_selected < 0) {
-                alert("No selection of Conversation");
-                return;
-            }
-
-            r = rs_conversation[rs_conversation_selected];
-            document.getElementById('input_who').value = r.who;
-            document.getElementById('input_korea').value = r.korean.join(' ');
-            document.getElementById('input_japanese').value = r.japanese.join(' ');
-            onGenerate()
-        }
-
-        async function onApplyEdit() {
-            if (rs_conversation_selected < 0) {
-                alert("No selection of Conversation");
-                return;
-            }
-
-            if (current_ruby == null) {
-                alert("Ruby not generated yet");
-                return;
-            }
-
-
-            await fillCurrentKoSpeech();
-
-            rs_conversation[rs_conversation_selected] = current_ruby;
-            let conversationDom = document.getElementById("conversation");
-
-            // add play button
-            let button_id = rs_conversation_selected;
-            let button_html = `<div id="play_button_${button_id}" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div>`;
-            let ruby_html = current_ruby.html.replace(play_button_place_holder, button_html);
-
-            conversationDom.childNodes.item(rs_conversation_selected).innerHTML = ruby_html;
-
-            addPlayButtonHook(rs_conversation_selected);
-        }
-
         function getRubyHtml(k, j) {
             let k_replaced = k.replaceAll('_', ' ');
             let generated = `<ruby style="ruby-position:under; margin-left: 10px">${k_replaced}<rt>${j}</rt></ruby>`;
             return generated;
         }
 
-        function pupulateKoSpeaking() {
-            for (let i = 0; i < rs_conversation.length; i++) {
-                let rs = rs_conversation[i];
-                //rs.speech = sgetKoSpeech(rs.korea);
-
-                // replace ending </div> place holder to 
-                // &#x23F5;
-                // <div id="play_button1" style="width: 20px; height: 20px; margin-left: 10px;">&#x23F5;</div>
-                // then generate some code like in 
-                // https://blog.hatena.ne.jp/noguxun/noguxun.hatenablog.com/edit?entry=820878482941942887
-                /*
-                        function base64ToArrayBuffer(base64) {
-            var binaryString = atob(base64);
-            var bytes = new Uint8Array(binaryString.length);
-            for (var i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            return bytes.buffer;
-        }
-                
-            function playBase64(event) {
-                console.log(event.target.id);
-                console.log("Div playBase64");
-                const audio = base64ToArrayBuffer(speech_base64);
-
-                        //https://www.wizard-notes.com/entry/javascript/web-audio-api-chrome-user-interaction
-                        // Create an AudioContext instance
-                        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-
-                        // Decode the MP3 data into an AudioBuffer
-                        audioContext.decodeAudioData(audio, function (decodedBuffer) {
-                            // Create a new AudioBufferSourceNode
-                            const source = audioContext.createBufferSource();
-
-                            // Set the decoded audio data as the buffer for the AudioBufferSourceNode
-                            source.buffer = decodedBuffer;
-
-                            // Connect the AudioBufferSourceNode to the destination (speakers)
-                            source.connect(audioContext.destination);
-
-                            // Start playing the audio
-                            source.start(0);
-                        });
-            }
-            
-            playButton.addEventListener("click", playBase64);
-                */
-            }
-
-
-        }
-
         function onCopyToClipboard() {
-            let all_html = "";
+            // html for korean ruby
+            let all_html = ""
             for (let i = 0; i < rs_conversation.length; i++) {
-                all_html += rs_conversation[i].html;
+                all_html += setHtmlPlayButton(rs_conversation[i].html, i)
             }
-            document.getElementById('output_text').value = all_html;
 
-            // pupulateKoSpeaking()
+            // speech data
+            all_html += "<script> let speeches = [";
+
+            for (let i = 0; i < rs_conversation.length; i++) {
+                let speech_base64 = rs_conversation[i].speech;
+                all_html += `"${speech_base64}",`;
+            }
+
+            all_html += "];"
+
+            all_html += playback_script + "<\/script>";
+
+            document.getElementById('output_text').value = all_html;
 
             navigator.clipboard
                 .writeText(all_html).
