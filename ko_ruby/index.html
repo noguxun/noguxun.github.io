@@ -4,7 +4,7 @@
 <head>
     <style type="text/tailwindcss">
         .button-gu {
-            @apply bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow;
+            @apply text-sm bg-white hover:bg-gray-100 text-gray-800 font-semibold py-2 px-4 border border-gray-400 rounded shadow;
         }
 
         .textarea-gu {
@@ -24,15 +24,53 @@
     <script>
 
         let playback_script = `
+            let audioContext = null;
+            let audioSource = null;
+            let audioCurrentSpeechId = -1;
         
             function playSpeech(speech_base64) {
+                if (audioContext == null) {
+                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                }
+
                 let audio = base64ToUint8Array(speech_base64);
-                const audioContext = new(window.AudioContext || window.webkitAudioContext)();
-                audioContext.decodeAudioData(audio.buffer, function(decodedBuffer) {
-                    const source = audioContext.createBufferSource();
-                    source.buffer = decodedBuffer;
-                    source.connect(audioContext.destination);
-                    source.start(0);
+
+                audioContext.decodeAudioData(audio.buffer, function (decodedBuffer) {                
+                    audioSource = audioContext.createBufferSource();
+                    audioSource.addEventListener("ended", () => {
+                        audioCurrentSpeechId = -1;
+                        audioSource = null;
+                        setPlayButtonIcon(-1);
+                    });
+                    
+                    audioSource.buffer = decodedBuffer;
+                    audioSource.connect(audioContext.destination);
+                    audioSource.start();
+                });
+            }
+
+            function setPlayButtonIcon(playing_button_index) {
+                let num = speeches.length;
+                for (let i = 0; i < num; i++) {
+                    const button_id = \`play_button_\${i}\`;
+                    let button = document.getElementById(button_id);
+
+                    if (i == playing_button_index) {
+                        // stop icon
+                        button.innerHTML = "&#x25FE;";
+                    }
+                    else {
+                        // play icon
+                        button.innerHTML = "&#x25B6;";
+                    }
+                } 
+            } 
+
+            function resolveAfter(time) {
+                return new Promise(resolve => {
+                    setTimeout(() => {
+                    resolve('resolved');
+                    }, time);
                 });
             }
 
@@ -48,8 +86,27 @@
             function addPlayButtonHook(button_id) {
                 button_html_id = \`play_button_\${button_id}\`;
                 let play_button = document.getElementById(button_html_id);
-                play_button.addEventListener("click", function() {
-                playSpeech(speeches[button_id]);
+                play_button.addEventListener("click", async function() {
+                    let audio = speeches[button_id];
+
+                    let is_stop_current = (button_id == audioCurrentSpeechId);
+                    
+                    // below will change audioCurrentSpeechId 
+                    if (audioSource != null) {
+                        audioSource.stop();
+                        audioCurrentSpeechId = -1;
+                        // wait for ended listener callback to finish 
+                        await resolveAfter(10);
+                        audioSource = null;
+                    }
+
+                    if (is_stop_current) {
+                        return;
+                    }
+
+                    audioCurrentSpeechId = button_id;
+                    setPlayButtonIcon(button_id);
+                    playSpeech(audio);
                 });
             }
             
@@ -97,13 +154,9 @@
             return bytes;
         }
 
-        async function onXyz() {
-            let speech_audio = await getKoSpeech("면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요");
-            playSpeech(speech_audio);
-        }
-
         async function fillCurrentKoSpeech() {
-            current_ruby.speech = await getKoSpeech(current_ruby.korean.join(' '));
+            let k_replaced = current_ruby.korean.join(' ').replaceAll('_', ' ');
+            current_ruby.speech = await getKoSpeech(k_replaced);
         }
 
         async function getKoSpeech(ko_txt) {
@@ -116,7 +169,7 @@
                 },
                 "voice": {
                     "languageCode": "ko-KR",
-                    "name": "ko-KR-Neural2-A",
+                    "name": "ko-KR-Neural2-C", // male voice, A, B are female
                     //"ssmlGender": "FEMALE"
                     //"name": "ko-KR-Wavenet-A",
                 },
@@ -139,29 +192,46 @@
             return speech_base64;
         }
 
+        let audioContext = null;
+        let audioSource = null;
+        let audioCurrentSpeechId = -1;
+
         function playSpeech(speech_base64) {
+            if (audioContext == null) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+            }
 
             let audio = base64ToUint8Array(speech_base64);
-            //https://www.wizard-notes.com/entry/javascript/web-audio-api-chrome-user-interaction
-            // Create an AudioContext instance
-            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
 
-            // Decode the MP3 data into an AudioBuffer
             audioContext.decodeAudioData(audio.buffer, function (decodedBuffer) {
-                // Create a new AudioBufferSourceNode
-                const source = audioContext.createBufferSource();
+                audioSource = audioContext.createBufferSource();
+                audioSource.addEventListener("ended", () => {
+                    audioCurrentSpeechId = -1;
+                    audioSource = null;
+                    setPlayButtonIcon(-1);
+                });
 
-                // Set the decoded audio data as the buffer for the AudioBufferSourceNode
-                source.buffer = decodedBuffer;
-
-                // Connect the AudioBufferSourceNode to the destination (speakers)
-                source.connect(audioContext.destination);
-
-                //source.playbackRate.value = 0.8;
-
-                // Start playing the audio
-                source.start(0);
+                audioSource.buffer = decodedBuffer;
+                audioSource.connect(audioContext.destination);
+                audioSource.start();
             });
+        }
+
+        function setPlayButtonIcon(playing_button_index) {
+            let num = rs_conversation.length;
+            for (let i = 0; i < num; i++) {
+                const button_id = `play_button_${i}`;
+                let button = document.getElementById(button_id);
+
+                if (i == playing_button_index) {
+                    // stop icon
+                    button.innerHTML = "&#x25FE;";
+                }
+                else {
+                    // play icon
+                    button.innerHTML = "&#x25B6;";
+                }
+            }
         }
 
         async function onTranslate() {
@@ -221,8 +291,60 @@
             current_ruby.html = ruby_html;
         }
 
-        function setHtmlPlayButton(html_no_button, button_index) {
-            let button_html = `<div id="play_button_${button_index}" style="width: 25px; height: 25px; margin-left: 10px; font-size: 20px; ">&#x1F50A;</div>`;
+        function setPlayButtonIcon(playing_button_index) {
+            let num = rs_conversation.length;
+            for (let i = 0; i < num; i++) {
+                const button_id = `play_button_${i}`;
+                let button = document.getElementById(button_id);
+
+                if (i == playing_button_index) {
+                    // stop icon
+                    button.innerHTML = "&#x25FE;";
+                }
+                else {
+                    // play icon
+                    button.innerHTML = "&#x25B6;";
+                }
+            }
+        }
+
+        function resolveAfter(time) {
+            return new Promise(resolve => {
+                setTimeout(() => {
+                    resolve('resolved');
+                }, time);
+            });
+        }
+
+        function addPlayButtonHook(button_id) {
+            button_html_id = `play_button_${button_id}`;
+            let play_button = document.getElementById(button_html_id);
+            play_button.addEventListener("click", async function () {
+                let audio = rs_conversation[button_id].speech;
+                let is_stop_current = (button_id == audioCurrentSpeechId);
+
+                // below will change audioCurrentSpeechId 
+                if (audioSource != null) {
+                    audioSource.stop();
+                    audioCurrentSpeechId = -1;
+                    // wait for ended listener callback to finish 
+                    await resolveAfter(10);
+                    audioSource = null;
+                }
+
+                if (is_stop_current) {
+                    return;
+                }
+
+                audioCurrentSpeechId = button_id;
+                setPlayButtonIcon(button_id);
+                playSpeech(audio);
+            });
+        }
+
+        function placeHtmlPlayButton(html_no_button, button_index) {
+            // https://graphemica.com/
+            let button_html = `<div id="play_button_${button_index}" style="width: 25px; height: 25px; margin-left: 10px; font-size: 20px; ">&#x25B6;</div>`;
             let html_button = html_no_button.replace(play_button_place_holder, button_html);
             return html_button;
         }
@@ -258,7 +380,7 @@
 
             // add play button
             let button_id = rs_conversation_selected;
-            let ruby_html = setHtmlPlayButton(current_ruby.html, button_id);
+            let ruby_html = placeHtmlPlayButton(current_ruby.html, button_id);
 
             conversationDom.childNodes.item(rs_conversation_selected).innerHTML = ruby_html;
 
@@ -276,7 +398,7 @@
             await fillCurrentKoSpeech();
             // add play button
             let button_id = rs_conversation.length;
-            let ruby_html = setHtmlPlayButton(current_ruby.html, button_id);
+            let ruby_html = placeHtmlPlayButton(current_ruby.html, button_id);
 
             // let the below clourse to capture this variable
             let rs_conversation_index = rs_conversation.length;
@@ -297,15 +419,7 @@
             addPlayButtonHook(button_id);
         }
 
-        function addPlayButtonHook(button_id) {
-            button_html_id = `play_button_${button_id}`;
-            let play_button = document.getElementById(button_html_id);
-            play_button.addEventListener("click", function () {
-                let audio = rs_conversation[button_id].speech;
-                console.log(audio);
-                playSpeech(audio);
-            });
-        }
+
 
         function getRubyHtml(k, j) {
             let k_replaced = k.replaceAll('_', ' ');
@@ -317,7 +431,7 @@
             // html for korean ruby
             let all_html = ""
             for (let i = 0; i < rs_conversation.length; i++) {
-                all_html += setHtmlPlayButton(rs_conversation[i].html, i)
+                all_html += placeHtmlPlayButton(rs_conversation[i].html, i)
             }
 
             // speech data
@@ -398,7 +512,6 @@
         <label for="message" class="label-gu">Japanese Ruby</label>
         <textarea id="output_text" rows="5" readonly class="mb-2 w-full textarea-gu"></textarea>
         <button onclick="onCopyToClipboard()" class="button-gu">Copy To Clipboard</button>
-        <button onclick="onXyz()" class="button-gu">X1</button>
     </div>
 
 
@@ -408,5 +521,5 @@
 
 <!--
 https://blog.hatena.ne.jp/noguxun/noguxun.hatenablog.com/edit?entry=820878482941942887
-    https://stackoverflow.com/questions/22885702/html-for-the-pause-symbol-in-audio-and-video-control
+https://stackoverflow.com/questions/22885702/html-for-the-pause-symbol-in-audio-and-video-control
 -->
