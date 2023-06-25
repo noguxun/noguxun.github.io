@@ -163,20 +163,28 @@
             // https://cloud.google.com/text-to-speech/docs/voices
             let baseUrl = "https://texttospeech.kclass.work/v1/text:synthesize";
 
+            let voice_name, pitch;
+            if (getVoiceGenderValue() == "male") {
+                voice_name = "ko-KR-Neural2-C";
+                pitch = 0.0;
+            }
+            else {
+                voice_name = "ko-KR-Neural2-A"; // A, B are female
+                pitch = -3.0;
+            }
+
             let reqBody = {
                 "input": {
                     "text": ko_txt,
                 },
                 "voice": {
                     "languageCode": "ko-KR",
-                    "name": "ko-KR-Neural2-C", // male voice, A, B are female
-                    //"ssmlGender": "FEMALE"
-                    //"name": "ko-KR-Wavenet-A",
+                    "name": voice_name, 
                 },
                 "audioConfig": {
                     "audioEncoding": "MP3",
                     "speakingRate": 0.7,
-                    //"sampleRateHertz": 8000,
+                    "pitch": pitch,
                 }
             };
 
@@ -266,29 +274,31 @@
 
             if (k_words.length != j_words.length || k_words.length == 0) {
                 document.getElementById("html_preview").classList.add("textarea-gu-alert");
-                console.log("wrong number!!");
 
                 document.getElementById("html_preview").innerHTML = `Korean: ${k_words.length}<br/>Japanese: ${j_words.length}`;
                 current_ruby = null;
                 return;
             }
 
-            let ruby_html = '<div style="display: flex; padding: 10px 0px;">' + getRubyHtml(who_said, ' ');
-            ruby_html += '<div style="display: flex; flex-wrap: wrap;">';
-            for (let i = 0; i < k_words.length; i++) {
-                ruby_html += getRubyHtml(k_words[i], j_words[i]);
-            }
-
-            ruby_html += `</div>${play_button_place_holder}</div>`;
-
-            document.getElementById("html_preview").innerHTML = ruby_html;
-            document.getElementById("html_preview").classList.remove("textarea-gu-alert")
-
             current_ruby = {};
             current_ruby.who = who_said;
             current_ruby.korean = k_words;
             current_ruby.japanese = j_words;
-            current_ruby.html = ruby_html;
+            current_ruby.html = generateCurrentRubyHtml();
+
+            document.getElementById("html_preview").innerHTML = current_ruby.html;
+            document.getElementById("html_preview").classList.remove("textarea-gu-alert")
+        }
+
+        function generateCurrentRubyHtml() {
+            let ruby_html = '<div style="display: flex; padding: 10px 0px;">' + getRubyHtml(current_ruby.who, ' ');
+            ruby_html += '<div style="display: flex; flex-wrap: wrap;">';
+            for (let i = 0; i < current_ruby.korean.length; i++) {
+                ruby_html += getRubyHtml(current_ruby.korean[i], current_ruby.japanese[i]);
+            }
+
+            ruby_html += `</div>${play_button_place_holder}</div>`;
+            return ruby_html;
         }
 
         function setPlayButtonIcon(playing_button_index) {
@@ -419,7 +429,12 @@
             addPlayButtonHook(button_id);
         }
 
-
+        function getVoiceGenderValue() {
+            const selectElement = document.getElementById("voice_gender");
+            const selectedValue = selectElement.value;
+            console.log(selectedValue);
+            return selectedValue;
+        }
 
         function getRubyHtml(k, j) {
             let k_replaced = k.replaceAll('_', ' ');
@@ -469,6 +484,55 @@
             document.body.appendChild(myelement);
         }
 
+        async function onLoadHtmlToEdit() {
+            //let txt = '<div style="display: flex; padding: 10px 0px;"><ruby style="ruby-position:under; margin-left: 10px">가:<rt> </rt></ruby><div style="display: flex; flex-wrap: wrap;"><ruby style="ruby-position:under; margin-left: 10px">면역력에<rt>免疫力に</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">좋은<rt>良い</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">낫토나<rt>納豆</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">요구르트나<rt>やヨーグルトや</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">생선같은<rt>魚のような</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">거<rt>ものを</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">많이<rt>たくさん</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">드세요.<rt>お召し上がりください</rt></ruby></div><div id="play_button_0" style="width: 25px; height: 25px; margin-left: 10px; font-size: 20px; ">&#x25B6;</div></div><div style="display: flex; padding: 10px 0px;"><ruby style="ruby-position:under; margin-left: 10px">A:<rt> </rt></ruby><div style="display: flex; flex-wrap: wrap;"><ruby style="ruby-position:under; margin-left: 10px">면역력에<rt>免疫力に</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">좋은<rt>良い</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">낫토나<rt>納豆</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">요구르트나<rt>やヨーグルトや</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">생선같은<rt>魚のような</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">거<rt>ものを</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">많이<rt>たくさん</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">드세요.<rt>お召し上がりください</rt></ruby></div><div id="play_button_1" style="width: 25px; height: 25px; margin-left: 10px; font-size: 20px; ">&#x25B6;</div></div>';
+            let txt = document.getElementById('output_text').value;
+            reg = /(.*)<rt>(.*)<\/rt>/;
+
+            const parser = new DOMParser();
+            const content = parser.parseFromString(txt, 'text/html').body;
+            console.log(content);
+            for (const node of content.childNodes) {
+                // some TEXT node needs to be skipped
+                if (node.nodeType != Node.ELEMENT_NODE) {
+                    continue;
+                }
+
+                let i = 0;
+                while (node.childNodes[i].nodeType != Node.ELEMENT_NODE && i < 100) {
+                    i ++;
+                }
+
+                let who_ruby_node = node.childNodes[i];
+                const who_html = who_ruby_node.innerHTML;
+                const matches = who_html.match(reg);
+
+                current_ruby = {};
+                current_ruby.who = matches[1];
+
+                i++;
+                while (node.childNodes[i].nodeType != Node.ELEMENT_NODE && i < 100) {
+                    i ++;
+                }
+                
+                current_ruby.korean = [];
+                current_ruby.japanese = [];
+                for (const word of node.childNodes[i].childNodes) {
+                    if (word.nodeType != Node.ELEMENT_NODE) {
+                        continue;
+                    }
+                    const matches = word.innerHTML.match(reg)
+                    current_ruby.korean.push(matches[1].replaceAll(' ', '_'));
+                    current_ruby.japanese.push(matches[2]);
+                }
+                current_ruby.html = generateCurrentRubyHtml();
+
+                console.log(current_ruby.html);
+
+                await onAppendEdit();
+            }
+        }
+
 
     </script>
 </head>
@@ -480,7 +544,7 @@
     <h1 class="container mx-auto text-center">Korean Ruby</h1>
 
     <div class="container mx-auto">
-        <label for="k_sentence" class="label-gu">Korean Sentence</label>
+        <div class="label-gu">Korean Sentence</div>
         <div id="k_sentence" class="flex mb-10 space-x-5">
             <textarea id="input_who" rows="2" cols="5" oninput="onGenerate()"
                 class="flex-none textarea-gu">A:</textarea>
@@ -489,29 +553,35 @@
                 class="flex-auto w-full textarea-gu">면역력에 좋은 낫토나 요구르트나 생선같은 거 많이 드세요.</textarea>
         </div>
 
-        <label for="input_japanese" class="label-gu">Japanese Ruby</label>
+        <div class="label-gu">Japanese Ruby</div>
         <textarea id="input_japanese" rows="2" oninput="onGenerate()"
             class="mb-2 w-full textarea-gu">免疫力に 良い 納豆 やヨーグルトや 魚のような ものを たくさん お召し上がりください</textarea>
         <div class="flex mb-10 space-x-5">
             <button onclick="onTranslate()" class="button-gu">Translate</button>
         </div>
 
-        <label for="html_preview" class="label-gu">Preview</label>
+        <div class="label-gu">Preview</div>
         <div id="html_preview" class="mb-2 w-full textarea-gu">
         </div>
         <div class="flex mb-10 space-x-5">
+            <select id="voice_gender" class="mb-10 button-gu">
+                <option value="female">&#x1F467; Female</option>
+                <option value="male">&#x1F466; Male</option>
+            </select>
             <button onclick="onApplyEdit()" class="mb-10 button-gu">Apply to Selection</button>
             <button onclick="onAppendEdit()" class="mb-10 button-gu">Append To Conversation</button>
         </div>
 
-
-        <label for="conversation" class="label-gu">Conversation</label>
+        <div class="label-gu">Conversation</div>
         <ul id="conversation" class="mb-2 w-full textarea-gu"></ul>
         <button onclick="onLoadToEdit()" class="mb-10 button-gu">Load to Edit</button>
 
-        <label for="message" class="label-gu">Japanese Ruby</label>
-        <textarea id="output_text" rows="5" readonly class="mb-2 w-full textarea-gu"></textarea>
-        <button onclick="onCopyToClipboard()" class="button-gu">Copy To Clipboard</button>
+        <div class="label-gu">Japanese Ruby</div>
+        <textarea id="output_text" rows="5" class="mb-2 w-full textarea-gu"></textarea>
+        <div class="flex mb-10 space-x-5">
+            <button onclick="onCopyToClipboard()" class="button-gu">Copy To Clipboard</button>
+            <button onclick="onLoadHtmlToEdit()" class="button-gu">Load To Edit</button>
+        </div>
     </div>
 
 
