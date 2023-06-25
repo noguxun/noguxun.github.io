@@ -22,96 +22,43 @@
     </style>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
+        const iconSvgPause = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 25 25"><path d="M6 4h4v16H6zm8 0h4v16h-4z" fill="currentColor" /></svg>';
+        const iconSvgPlay = '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 25 25"><path d="M8 5v14l11-7z" fill="currentColor" /></svg>';
 
         let playback_script = `
-            let audioContext = null;
-            let audioSource = null;
-            let audioCurrentSpeechId = -1;
-        
-            function playSpeech(speech_base64) {
-                if (audioContext == null) {
-                    audioContext = new (window.AudioContext || window.webkitAudioContext)();
-                }
+            function setPlayButtonIcon(button_index, is_paused) {
+                const button_id = \`play_button_\${button_index}\`;
+                let button = document.getElementById(button_id);
 
-                let audio = base64ToUint8Array(speech_base64);
-
-                audioContext.decodeAudioData(audio.buffer, function (decodedBuffer) {                
-                    audioSource = audioContext.createBufferSource();
-                    audioSource.addEventListener("ended", () => {
-                        audioCurrentSpeechId = -1;
-                        audioSource = null;
-                        setPlayButtonIcon(-1);
-                    });
-                    
-                    audioSource.buffer = decodedBuffer;
-                    audioSource.connect(audioContext.destination);
-                    audioSource.start();
-                });
-            }
-
-            function setPlayButtonIcon(playing_button_index) {
-                let num = speeches.length;
-                for (let i = 0; i < num; i++) {
-                    const button_id = \`play_button_\${i}\`;
-                    let button = document.getElementById(button_id);
-
-                    if (i == playing_button_index) {
-                        // stop icon
-                        button.innerHTML = "&#x25FE;";
-                    }
-                    else {
-                        // play icon
-                        button.innerHTML = "&#x25B6;";
-                    }
-                } 
+                button.innerHTML = is_paused ? '${iconSvgPlay}' : '${iconSvgPause}';
             } 
-
-            function resolveAfter(time) {
-                return new Promise(resolve => {
-                    setTimeout(() => {
-                    resolve('resolved');
-                    }, time);
-                });
-            }
-
-            function base64ToUint8Array(base64) {
-                var binaryString = atob(base64);
-                var bytes = new Uint8Array(binaryString.length);
-                for (var i = 0; i < binaryString.length; i++) {
-                    bytes[i] = binaryString.charCodeAt(i);
-                }
-                return bytes;
-            }
 
             function addPlayButtonHook(button_id) {
                 button_html_id = \`play_button_\${button_id}\`;
                 let play_button = document.getElementById(button_html_id);
                 play_button.addEventListener("click", async function() {
-                    let audio = speeches[button_id];
-
-                    let is_stop_current = (button_id == audioCurrentSpeechId);
-                    
-                    // below will change audioCurrentSpeechId 
-                    if (audioSource != null) {
-                        audioSource.stop();
-                        audioCurrentSpeechId = -1;
-                        // wait for ended listener callback to finish 
-                        await resolveAfter(10);
-                        audioSource = null;
+                    let audio = audios[button_id];
+                    if (audio.paused) {
+                        audio.play();
                     }
-
-                    if (is_stop_current) {
-                        return;
+                    else {
+                        audio.pause();
                     }
+                    setPlayButtonIcon(button_id, audio.paused);
+                });
 
-                    audioCurrentSpeechId = button_id;
-                    setPlayButtonIcon(button_id);
-                    playSpeech(audio);
+                let audio = audios[button_id];
+                audio.addEventListener("ended", function () {
+                    setPlayButtonIcon(button_id, true);
                 });
             }
             
+            // ---- starts to run ----------
+            let audios = [];
             for (let i = 0; i < speeches.length; i++) {
+                audios[i] =  new Audio("data:audio/mp3;base64," + speeches[i]);
                 addPlayButtonHook(i);
+                setPlayButtonIcon(i, true);
             }
         `;
 
@@ -145,26 +92,18 @@
             }
         };
 
-        function base64ToUint8Array(base64) {
-            var binaryString = atob(base64);
-            var bytes = new Uint8Array(binaryString.length);
-            for (var i = 0; i < binaryString.length; i++) {
-                bytes[i] = binaryString.charCodeAt(i);
-            }
-            return bytes;
-        }
-
         async function fillCurrentKoSpeech() {
             let k_replaced = current_ruby.korean.join(' ').replaceAll('_', ' ');
-            current_ruby.speech = await getKoSpeech(k_replaced);
+            current_ruby.speech = await getKoSpeech(k_replaced, getVoiceGenderValue());
+            current_ruby.audio = new Audio("data:audio/mp3;base64," + current_ruby.speech);
         }
 
-        async function getKoSpeech(ko_txt) {
+        async function getKoSpeech(ko_txt, gender) {
             // https://cloud.google.com/text-to-speech/docs/voices
             let baseUrl = "https://texttospeech.kclass.work/v1/text:synthesize";
 
             let voice_name, pitch;
-            if (getVoiceGenderValue() == "male") {
+            if (gender == "male") {
                 voice_name = "ko-KR-Neural2-C";
                 pitch = 0.0;
             }
@@ -179,7 +118,7 @@
                 },
                 "voice": {
                     "languageCode": "ko-KR",
-                    "name": voice_name, 
+                    "name": voice_name,
                 },
                 "audioConfig": {
                     "audioEncoding": "MP3",
@@ -200,51 +139,16 @@
             return speech_base64;
         }
 
-        let audioContext = null;
-        let audioSource = null;
-        let audioCurrentSpeechId = -1;
+        function setPlayButtonIcon(index, is_paused) {
+            const button_id = `play_button_${index}`;
+            let button = document.getElementById(button_id);
 
-        function playSpeech(speech_base64) {
-            if (audioContext == null) {
-                audioContext = new (window.AudioContext || window.webkitAudioContext)();
-            }
-
-            let audio = base64ToUint8Array(speech_base64);
-
-            audioContext.decodeAudioData(audio.buffer, function (decodedBuffer) {
-                audioSource = audioContext.createBufferSource();
-                audioSource.addEventListener("ended", () => {
-                    audioCurrentSpeechId = -1;
-                    audioSource = null;
-                    setPlayButtonIcon(-1);
-                });
-
-                audioSource.buffer = decodedBuffer;
-                audioSource.connect(audioContext.destination);
-                audioSource.start();
-            });
-        }
-
-        function setPlayButtonIcon(playing_button_index) {
-            let num = rs_conversation.length;
-            for (let i = 0; i < num; i++) {
-                const button_id = `play_button_${i}`;
-                let button = document.getElementById(button_id);
-
-                if (i == playing_button_index) {
-                    // stop icon
-                    button.innerHTML = "&#x25FE;";
-                }
-                else {
-                    // play icon
-                    button.innerHTML = "&#x25B6;";
-                }
-            }
+            button.innerHTML = is_paused ? iconSvgPlay : iconSvgPause;
         }
 
         async function onTranslate() {
-            let baseUrl = "https://translate.kclass.work/language/translate/v2";
-            let input_text = document.getElementById('input_korea').value;
+            const baseUrl = "https://translate.kclass.work/language/translate/v2";
+            const input_text = document.getElementById('input_korea').value;
 
             let reqBody = {};
             reqBody["q"] = [input_text];
@@ -301,60 +205,29 @@
             return ruby_html;
         }
 
-        function setPlayButtonIcon(playing_button_index) {
-            let num = rs_conversation.length;
-            for (let i = 0; i < num; i++) {
-                const button_id = `play_button_${i}`;
-                let button = document.getElementById(button_id);
-
-                if (i == playing_button_index) {
-                    // stop icon
-                    button.innerHTML = "&#x25FE;";
-                }
-                else {
-                    // play icon
-                    button.innerHTML = "&#x25B6;";
-                }
-            }
-        }
-
-        function resolveAfter(time) {
-            return new Promise(resolve => {
-                setTimeout(() => {
-                    resolve('resolved');
-                }, time);
-            });
-        }
-
         function addPlayButtonHook(button_id) {
             button_html_id = `play_button_${button_id}`;
             let play_button = document.getElementById(button_html_id);
-            play_button.addEventListener("click", async function () {
-                let audio = rs_conversation[button_id].speech;
-                let is_stop_current = (button_id == audioCurrentSpeechId);
-
-                // below will change audioCurrentSpeechId 
-                if (audioSource != null) {
-                    audioSource.stop();
-                    audioCurrentSpeechId = -1;
-                    // wait for ended listener callback to finish 
-                    await resolveAfter(10);
-                    audioSource = null;
+            play_button.addEventListener("click", function () {
+                let audio = rs_conversation[button_id].audio;
+                if (audio.paused) {
+                    audio.play();
                 }
-
-                if (is_stop_current) {
-                    return;
+                else {
+                    audio.pause();
                 }
+                setPlayButtonIcon(button_id, audio.paused);
+            });
 
-                audioCurrentSpeechId = button_id;
-                setPlayButtonIcon(button_id);
-                playSpeech(audio);
+            let audio = rs_conversation[button_id].audio;
+            audio.addEventListener("ended", function () {
+                setPlayButtonIcon(button_id, true);
             });
         }
 
         function placeHtmlPlayButton(html_no_button, button_index) {
             // https://graphemica.com/
-            let button_html = `<div id="play_button_${button_index}" style="width: 25px; height: 25px; margin-left: 10px; font-size: 20px; ">&#x25B6;</div>`;
+            let button_html = `<div id="play_button_${button_index}" style="width: 25px; height: 25px; margin-left: 10px; font-size: 20px; font-family: sans-serif;">${iconSvgPlay}</div>`;
             let html_button = html_no_button.replace(play_button_place_holder, button_html);
             return html_button;
         }
@@ -370,6 +243,19 @@
             document.getElementById('input_korea').value = r.korean.join(' ');
             document.getElementById('input_japanese').value = r.japanese.join(' ');
             onGenerate()
+        }
+
+        async function onSetSpeechGender(gender) {
+            if (rs_conversation_selected < 0) {
+                alert("No selection of Conversation");
+                return;
+            }
+
+            r = rs_conversation[rs_conversation_selected];
+            
+            let k_replaced = r.korean.join(' ').replaceAll('_', ' ');
+            r.speech = await getKoSpeech(k_replaced, gender);
+            r.audio = new Audio("data:audio/mp3;base64," + r.speech);
         }
 
         async function onApplyEdit() {
@@ -485,7 +371,6 @@
         }
 
         async function onLoadHtmlToEdit() {
-            //let txt = '<div style="display: flex; padding: 10px 0px;"><ruby style="ruby-position:under; margin-left: 10px">가:<rt> </rt></ruby><div style="display: flex; flex-wrap: wrap;"><ruby style="ruby-position:under; margin-left: 10px">면역력에<rt>免疫力に</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">좋은<rt>良い</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">낫토나<rt>納豆</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">요구르트나<rt>やヨーグルトや</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">생선같은<rt>魚のような</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">거<rt>ものを</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">많이<rt>たくさん</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">드세요.<rt>お召し上がりください</rt></ruby></div><div id="play_button_0" style="width: 25px; height: 25px; margin-left: 10px; font-size: 20px; ">&#x25B6;</div></div><div style="display: flex; padding: 10px 0px;"><ruby style="ruby-position:under; margin-left: 10px">A:<rt> </rt></ruby><div style="display: flex; flex-wrap: wrap;"><ruby style="ruby-position:under; margin-left: 10px">면역력에<rt>免疫力に</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">좋은<rt>良い</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">낫토나<rt>納豆</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">요구르트나<rt>やヨーグルトや</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">생선같은<rt>魚のような</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">거<rt>ものを</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">많이<rt>たくさん</rt></ruby><ruby style="ruby-position:under; margin-left: 10px">드세요.<rt>お召し上がりください</rt></ruby></div><div id="play_button_1" style="width: 25px; height: 25px; margin-left: 10px; font-size: 20px; ">&#x25B6;</div></div>';
             let txt = document.getElementById('output_text').value;
             reg = /(.*)<rt>(.*)<\/rt>/;
 
@@ -500,7 +385,7 @@
 
                 let i = 0;
                 while (node.childNodes[i].nodeType != Node.ELEMENT_NODE && i < 100) {
-                    i ++;
+                    i++;
                 }
 
                 let who_ruby_node = node.childNodes[i];
@@ -512,9 +397,9 @@
 
                 i++;
                 while (node.childNodes[i].nodeType != Node.ELEMENT_NODE && i < 100) {
-                    i ++;
+                    i++;
                 }
-                
+
                 current_ruby.korean = [];
                 current_ruby.japanese = [];
                 for (const word of node.childNodes[i].childNodes) {
@@ -574,7 +459,11 @@
 
         <div class="label-gu">Conversation</div>
         <ul id="conversation" class="mb-2 w-full textarea-gu"></ul>
-        <button onclick="onLoadToEdit()" class="mb-10 button-gu">Load to Edit</button>
+        <div class="flex mb-10 space-x-5">
+            <button onclick="onLoadToEdit()" class="mb-10 button-gu">Load to Edit</button>
+            <button onclick='onSetSpeechGender("male")' class="mb-10 button-gu">Set Male</button>
+            <button onclick='onSetSpeechGender("female")' class="mb-10 button-gu">Set Male</button>
+        </div>
 
         <div class="label-gu">Japanese Ruby</div>
         <textarea id="output_text" rows="5" class="mb-2 w-full textarea-gu"></textarea>
