@@ -195,7 +195,7 @@
         }
 
         function generateCurrentRubyHtml() {
-            let ruby_html = '<div style="display: flex; padding: 10px 0px;">' + getRubyHtml(current_ruby.who, ' ');
+            let ruby_html = '<div style="display: flex; padding: 10px 0px;">' + getSpeakerRubyHtml(current_ruby.who);
             ruby_html += '<div style="display: flex; flex-wrap: wrap;">';
             for (let i = 0; i < current_ruby.korean.length; i++) {
                 ruby_html += getRubyHtml(current_ruby.korean[i], current_ruby.japanese[i]);
@@ -324,7 +324,13 @@
 
         function getRubyHtml(k, j) {
             let k_replaced = k.replaceAll('_', ' ');
-            let generated = `<ruby style="ruby-position:under; margin-left: 10px">${k_replaced}<rt>${j}</rt></ruby>`;
+            let generated = `<ruby style="ruby-position:under; margin-left: 10px;">${k_replaced}<rt>${j}</rt></ruby>`;
+            return generated;
+        }
+
+        function getSpeakerRubyHtml(k) {
+            let generated = `<ruby style="ruby-position:under; margin-left: 10px; flex-shrink: 0;">${k}<rt> </rt></ruby>`;
+            // let generated = `<ruby style="ruby-position:under; margin-left: 10px; ">${k}<rt> </rt></ruby>`;
             return generated;
         }
 
